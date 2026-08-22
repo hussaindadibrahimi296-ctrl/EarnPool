@@ -1,4 +1,7 @@
 import os
+import asyncio
+import threading
+
 from flask import Flask
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
@@ -34,20 +37,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 🪙 Earn Telcoin by completing simple activities inside EarnPool.
 
-💰 You can earn Telcoin through:
-• 🎁 Daily rewards
-• 📺 Watching available ads
-• 📋 Completing tasks
-• 👥 Inviting friends
+💰 Ways to earn:
+• 🎁 Daily Reward
+• 📺 Watch available ads
+• 📋 Complete tasks
+• 👥 Invite friends
 
-<b>👥 Referral Rewards</b>
+<b>👥 Earn with Referrals</b>
 
 Invite your friends using your personal referral link.
-When your referrals become active users and complete eligible activities, you can receive referral rewards according to the current EarnPool rules.
+When eligible referral activities are completed, you can receive Telcoin according to the current EarnPool rules.
 
-💎 Your Telcoin balance can be viewed anytime inside your account.
+💎 Your balance and earnings can be checked anytime.
 
-🚀 Start earning by opening EarnPool below!
+🚀 Open EarnPool and start earning Telcoin!
 """
 
     await update.message.reply_text(
@@ -59,19 +62,22 @@ When your referrals become active users and complete eligible activities, you ca
 
 async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🪙 Your current balance:\n\n0 Telcoin\n≈ $0.00"
+        "🪙 <b>Your Balance</b>\n\n"
+        "0 Telcoin\n"
+        "≈ $0.00",
+        parse_mode="HTML"
     )
 
 
 async def referral(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-
     bot_username = context.bot.username
+
     referral_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
 
     await update.message.reply_text(
         f"👥 <b>Your Referral</b>\n\n"
-        f"Invite friends and earn Telcoin according to the current referral rules.\n\n"
+        f"Invite friends and earn Telcoin according to the current rules.\n\n"
         f"🔗 Your referral link:\n{referral_link}",
         parse_mode="HTML"
     )
@@ -101,37 +107,47 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def run_bot():
+async def start_telegram_bot():
     if not BOT_TOKEN:
-        raise RuntimeError("BOT_TOKEN is not configured")
+        print("ERROR: BOT_TOKEN is missing")
+        return
 
     if not WEB_APP_URL:
-        raise RuntimeError("WEB_APP_URL is not configured")
+        print("ERROR: WEB_APP_URL is missing")
+        return
 
-    application = Application.builder().token(BOT_TOKEN).build()
+    bot_app = Application.builder().token(BOT_TOKEN).build()
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("balance", balance))
-    application.add_handler(CommandHandler("referral", referral))
-    application.add_handler(CommandHandler("account", account))
-    application.add_handler(CommandHandler("help", help_command))
+    bot_app.add_handler(CommandHandler("start", start))
+    bot_app.add_handler(CommandHandler("balance", balance))
+    bot_app.add_handler(CommandHandler("referral", referral))
+    bot_app.add_handler(CommandHandler("account", account))
+    bot_app.add_handler(CommandHandler("help", help_command))
 
-    await application.initialize()
-    await application.start()
-    await application.updater.start_polling()
+    await bot_app.initialize()
+    await bot_app.start()
+    await bot_app.updater.start_polling()
 
     print("EarnPool Telegram Bot is running!")
 
-    import asyncio
-    await asyncio.Event().wait()
+    while True:
+        await asyncio.sleep(3600)
 
 
-@app.route("/start-bot")
-def start_bot():
-    import asyncio
-    asyncio.run(run_bot())
-    return "Bot started"
+def run_bot():
+    asyncio.run(start_telegram_bot())
+
+
+if BOT_TOKEN and WEB_APP_URL:
+    bot_thread = threading.Thread(
+        target=run_bot,
+        daemon=True
+    )
+    bot_thread.start()
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(
+        host="0.0.0.0",
+        port=5000
+    )
